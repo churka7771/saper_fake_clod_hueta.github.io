@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сапёр · Деструкция</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ===================== HUD ===================== -->
+<div id="hud">
+  <div class="hud-group">
+    <div class="counter">
+      <span class="label">мин</span>
+      <span class="value" id="mines-value">000</span>
+    </div>
+    <div class="counter">
+      <span class="label">время</span>
+      <span class="value" id="time-value">0:00</span>
+    </div>
+  </div>
+
+  <div class="hud-sep"></div>
+
+  <div class="hud-group">
+    <button id="restart" title="Новая партия (R)">&#9679;</button>
+  </div>
+
+  <div class="hud-sep"></div>
+
+  <div class="hud-group" id="difficulty">
+    <button data-preset="beginner"     title="9 x 9, 10 мин (1)">Новичок</button>
+    <button data-preset="intermediate" title="16 x 16, 40 мин (2)">Любитель</button>
+    <button data-preset="expert"       title="30 x 16, 99 мин (3)">Профи</button>
+  </div>
+
+  <div class="hud-sep"></div>
+
+  <div class="hud-group">
+    <button id="mute" class="icon-btn" title="Звук (M)">&#9834;</button>
+  </div>
+</div>
+
+<!-- ===================== Сцена ===================== -->
+<div id="stage">
+  <div id="shaker">
+    <div id="field">
+      <!--
+        Четыре слоя, снизу вверх:
+          bg      — процедурный бетон и сетка. Перерисовывается по dirty-флагу.
+          damage  — копоть, трещины, дыры. НЕ чистится: разрушения накапливаются.
+          main    — плитки, цифры, флаги, осколки. Чистится каждый кадр.
+          fx      — огонь, искры, свет, ударная волна. Аддитивный (mix-blend-mode).
+        Первый слой несёт класс base и задаёт габариты контейнера.
+      -->
+      <canvas id="layer-bg"     class="base"></canvas>
+      <canvas id="layer-damage"></canvas>
+      <canvas id="layer-main"></canvas>
+      <canvas id="layer-fx"></canvas>
+    </div>
+  </div>
+
+  <div id="overlays">
+    <div id="vignette"></div>
+    <div id="flash"></div>
+  </div>
+
+  <div id="endcard">
+    <div class="endcard-inner">
+      <h2 id="end-title">—</h2>
+      <div id="end-stats"></div>
+      <button id="end-again">Ещё раз</button>
+    </div>
+  </div>
+</div>
+
+<div id="hint">
+  <kbd>ЛКМ</kbd> открыть &nbsp;·&nbsp;
+  <kbd>ПКМ</kbd> флаг &nbsp;·&nbsp;
+  <kbd>СКМ</kbd> открыть по цифре &nbsp;·&nbsp;
+  <kbd>R</kbd> заново &nbsp;·&nbsp;
+  <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> сложность &nbsp;·&nbsp;
+  <kbd>~</kbd> отладка
+</div>
+
+<!-- ===================== Dev-панель ===================== -->
+<div id="devpanel">
+  <h4>отладка</h4>
+  <div class="row"><span>FPS</span><span id="dev-fps">—</span></div>
+  <div class="row"><span>кадр</span><span id="dev-frame">—</span></div>
+  <div class="row"><span>частиц</span><span id="dev-particles">—</span></div>
+  <div class="row"><span>осколков</span><span id="dev-debris">—</span></div>
+  <div class="row"><span>огня</span><span id="dev-fire">—</span></div>
+  <div class="row"><span>качество</span><span id="dev-quality">—</span></div>
+  <div class="dev-actions">
+    <button id="dev-boom">Взорвать случайную мину</button>
+    <button id="dev-boom-all">Взорвать всё</button>
+    <button id="dev-reveal">Открыть поле</button>
+  </div>
+</div>
+
+<!--
+  Классические скрипты вместо ES-модулей: страница должна открываться
+  двойным кликом с file://, где модули блокируются политикой CORS.
+  Порядок загрузки = порядок зависимостей.
+-->
+<script src="js/util.js"></script>
+<script src="js/board.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/particles.js"></script>
+<script src="js/debris.js"></script>
+<script src="js/cracks.js"></script>
+<script src="js/fire.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/render.js"></script>
+<script src="js/game.js"></script>
+
+</body>
+</html>

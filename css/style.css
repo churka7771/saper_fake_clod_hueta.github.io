@@ -1,0 +1,398 @@
+/* ===========================================================================
+ * style.css — оболочка игры: HUD, стек canvas-слоёв, оверлеи.
+ *
+ * Всё, что можно отдать браузеру (виньетка, полосы, тень), сделано на CSS
+ * и не тратит кадровое время canvas. Тряска экрана тоже применяется
+ * CSS-трансформом к контейнеру — это композитится на GPU.
+ * =========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* Палитра «грязного реализма»: бетон, ржавчина, копоть. */
+  --bg-deep:      #0a0908;
+  --bg-room:      #14120f;
+  --concrete:     #3b3833;
+  --concrete-lit: #4a4640;
+  --steel:        #55504a;
+  --rust:         #8a4b2a;
+  --rust-bright:  #b8622f;
+  --ash:          #6f665a;
+  --bone:         #cfc7ba;
+  --bone-bright:  #e8e0d2;
+  --danger:       #c0392b;
+  --ok:           #7ea04d;
+
+  --hud-h: 62px;
+  --font-mono: "Consolas", "Cascadia Mono", ui-monospace, "DejaVu Sans Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg-deep);
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  font-family: var(--font-mono);
+  color: var(--bone);
+  user-select: none;
+  -webkit-user-select: none;
+  /* Тёмная «комната» вокруг поля: центр чуть светлее. */
+  background:
+    radial-gradient(ellipse 120% 90% at 50% 38%, #1d1a16 0%, #100e0c 55%, #070606 100%);
+}
+
+/* --- HUD ------------------------------------------------------------- */
+
+#hud {
+  flex: 0 0 auto;
+  width: 100%;
+  height: var(--hud-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 0 18px;
+  background: linear-gradient(#1a1713, #100e0b);
+  border-bottom: 1px solid #000;
+  box-shadow: 0 1px 0 #2b2620 inset, 0 6px 18px rgba(0, 0, 0, .6);
+  z-index: 30;
+}
+
+.hud-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-sep {
+  width: 1px;
+  height: 26px;
+  background: linear-gradient(transparent, #342e27, transparent);
+}
+
+/* Механический счётчик: тёмное окно с тлеющими цифрами. */
+.counter {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 84px;
+  padding: 5px 10px;
+  background: #0b0a09;
+  border: 1px solid #2a251f;
+  border-radius: 2px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .9);
+}
+
+.counter .label {
+  font-size: 9px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: #5c554b;
+}
+
+.counter .value {
+  font-size: 19px;
+  font-weight: bold;
+  letter-spacing: .04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--rust-bright);
+  text-shadow: 0 0 9px rgba(184, 98, 47, .5);
+}
+
+/* Мин осталось меньше нуля — игрок переставил флагов. */
+#mines-value.over { color: var(--danger); text-shadow: 0 0 9px rgba(192, 57, 43, .55); }
+
+/* --- Кнопки ---------------------------------------------------------- */
+
+button {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--bone);
+  background: linear-gradient(#3a352e, #24201b);
+  border: 1px solid #16130f;
+  border-top-color: #4d463d;
+  border-radius: 2px;
+  padding: 7px 13px;
+  cursor: pointer;
+  transition: background .12s, color .12s, transform .06s;
+}
+
+button:hover {
+  background: linear-gradient(#474036, #2c2721);
+  color: var(--bone-bright);
+}
+
+button:active { transform: translateY(1px); }
+
+button.active {
+  background: linear-gradient(#6d3a1f, #4a2614);
+  border-top-color: var(--rust-bright);
+  color: #f0d9c4;
+}
+
+/* Рестарт — самая заметная кнопка, к ней тянутся чаще всего. */
+#restart {
+  font-size: 15px;
+  padding: 6px 14px;
+  min-width: 50px;
+  background: linear-gradient(#443c31, #262019);
+}
+
+#restart:hover { background: linear-gradient(#54493b, #2f281f); }
+
+.icon-btn {
+  min-width: 38px;
+  font-size: 13px;
+  padding: 6px 9px;
+}
+
+/* --- Игровая сцена --------------------------------------------------- */
+
+#stage {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+/*
+ * Контейнер трясётся целиком. Трансформ ставит его в отдельный слой
+ * композитора, поэтому тряска не вызывает перерисовку canvas.
+ */
+#shaker {
+  position: relative;
+  will-change: transform;
+  transform-origin: 50% 50%;
+}
+
+#field {
+  position: relative;
+  /* Поле стоит в бетонной рамке — «вкопано» в стену. */
+  box-shadow:
+    0 0 0 1px #0a0908,
+    0 0 0 7px #2a251f,
+    0 0 0 8px #443d33,
+    0 0 0 9px #0d0b09,
+    0 14px 40px rgba(0, 0, 0, .8),
+    0 3px 10px rgba(0, 0, 0, .6);
+}
+
+/* Все слои лежат друг на друге и совпадают по размеру. */
+#field canvas {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Пиксельная точность важнее сглаживания при масштабировании. */
+  image-rendering: pixelated;
+}
+
+/* Первый слой задаёт габариты контейнера. */
+#field canvas.base {
+  position: relative;
+}
+
+#layer-bg     { z-index: 1; }
+#layer-damage { z-index: 2; }
+#layer-main   { z-index: 3; }
+#layer-fx     { z-index: 4; mix-blend-mode: screen; }
+
+/* --- Оверлеи (поверх поля, не трогают canvas) ------------------------ */
+
+#overlays {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Виньетка: съедает края, взгляд уходит в центр. Бесплатно. */
+#vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 78% 68% at 50% 46%,
+      rgba(0, 0, 0, 0) 42%,
+      rgba(0, 0, 0, .30) 74%,
+      rgba(0, 0, 0, .62) 100%);
+}
+
+/* Вспышка от взрыва. Управляется из JS через opacity. */
+#flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, #fff6e0 0%, #ffb347 45%, #ff6a1a 100%);
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+
+/* --- Финальный экран ------------------------------------------------- */
+
+#endcard {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .45s ease-out;
+  background: rgba(6, 5, 4, .55);
+  backdrop-filter: blur(1.5px);
+}
+
+#endcard.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.endcard-inner {
+  text-align: center;
+  padding: 26px 40px;
+  background: linear-gradient(#1c1814, #100d0a);
+  border: 1px solid #000;
+  border-top: 1px solid #3d352c;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .85);
+  transform: translateY(10px) scale(.97);
+  transition: transform .45s cubic-bezier(.2, .9, .3, 1);
+}
+
+#endcard.show .endcard-inner { transform: none; }
+
+#end-title {
+  margin: 0 0 6px;
+  font-size: 26px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+#endcard.lost #end-title {
+  color: #e8705c;
+  text-shadow: 0 0 22px rgba(192, 57, 43, .55);
+}
+
+#endcard.won #end-title {
+  color: #b7d283;
+  text-shadow: 0 0 22px rgba(126, 160, 77, .5);
+}
+
+#end-stats {
+  color: var(--ash);
+  font-size: 12px;
+  letter-spacing: .06em;
+  margin-bottom: 18px;
+  line-height: 1.7;
+}
+
+#end-stats b { color: var(--bone); font-weight: bold; }
+
+/* --- Подсказка по управлению ----------------------------------------- */
+
+#hint {
+  flex: 0 0 auto;
+  padding: 7px 0 11px;
+  font-size: 10.5px;
+  letter-spacing: .07em;
+  color: #4f4842;
+  text-align: center;
+}
+
+#hint kbd {
+  font-family: inherit;
+  font-size: 10px;
+  padding: 1px 5px;
+  color: #8e8477;
+  background: #201c17;
+  border: 1px solid #322c25;
+  border-radius: 2px;
+}
+
+/* --- Dev-панель ------------------------------------------------------ */
+
+#devpanel {
+  position: fixed;
+  top: calc(var(--hud-h) + 10px);
+  right: 10px;
+  z-index: 60;
+  display: none;
+  min-width: 178px;
+  padding: 10px 12px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #9fd18a;
+  background: rgba(8, 10, 7, .92);
+  border: 1px solid #2c3a24;
+  border-radius: 2px;
+}
+
+#devpanel.show { display: block; }
+
+#devpanel h4 {
+  margin: 0 0 6px;
+  font-size: 9px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: #5f7a4d;
+}
+
+#devpanel .row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#devpanel .row span:last-child {
+  font-variant-numeric: tabular-nums;
+  color: #cfe8bd;
+}
+
+#devpanel .dev-actions {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid #24301d;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+#devpanel button {
+  font-size: 9.5px;
+  padding: 5px 7px;
+  color: #b6d9a2;
+  background: #1b2416;
+  border: 1px solid #2f3f26;
+  border-top-color: #3f5233;
+}
+
+#devpanel button:hover { background: #243020; color: #d9f0c9; }
+
+/* --- Доступность ----------------------------------------------------- */
+
+/*
+ * Тряска, вспышки и slow-mo — ровно тот класс эффектов, который вызывает
+ * тошноту и головную боль у части людей. Гасим агрессивную часть,
+ * оставляя игру полностью функциональной. JS читает тот же media query
+ * и снижает силу эффектов на своей стороне.
+ */
+@media (prefers-reduced-motion: reduce) {
+  #shaker { transform: none !important; }
+  #flash { display: none; }
+  #endcard, .endcard-inner { transition-duration: .01s; }
+}

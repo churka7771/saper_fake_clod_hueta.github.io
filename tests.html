@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Сапёр — проверки логики</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 28px 22px;
+    background: #14120f;
+    color: #cfc7ba;
+    font: 14px/1.55 "Consolas", "Cascadia Mono", ui-monospace, monospace;
+  }
+  h1 { font-size: 17px; letter-spacing: .1em; text-transform: uppercase; margin: 0 0 4px; color: #e8e0d2; }
+  .sub { color: #6f665a; margin-bottom: 22px; font-size: 12px; }
+  #summary { padding: 12px 16px; border-left: 3px solid; margin-bottom: 20px; background: #1c1915; }
+  #summary.pass { border-color: #7ea04d; color: #b7d283; }
+  #summary.fail { border-color: #c0392b; color: #e88b7d; }
+  #summary b { font-size: 16px; }
+  ol { margin: 0; padding: 0; list-style: none; }
+  li { padding: 5px 0 5px 10px; border-left: 2px solid #2a2620; }
+  li.pass { border-color: #46552c; }
+  li.fail { border-color: #c0392b; background: #241a18; }
+  .tag { display: inline-block; width: 46px; font-weight: bold; }
+  .pass .tag { color: #8fae5c; }
+  .fail .tag { color: #d6584a; }
+  .n { color: #5c554b; }
+  .err { color: #e8a196; margin: 3px 0 0 56px; font-size: 13px; }
+  a { color: #8a9a6b; }
+</style>
+</head>
+<body>
+  <h1>Сапёр — проверки логики</h1>
+  <div class="sub">
+    Тот же набор, что <code>node tools/run-tests.js</code>.
+    Проверяется только чистая логика поля: рендер и эффекты не участвуют.
+  </div>
+
+  <div id="summary">Выполняется…</div>
+  <ol id="list"></ol>
+
+  <script src="js/util.js"></script>
+  <script src="js/board.js"></script>
+  <script src="js/tests-board.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var started = performance.now();
+    var runner = MS.tests.runAll();
+    var elapsed = Math.round(performance.now() - started);
+    var sum = runner.summary();
+
+    var list = document.getElementById('list');
+    var frag = document.createDocumentFragment();
+
+    runner.results.forEach(function (rec) {
+      var li = document.createElement('li');
+      li.className = rec.pass ? 'pass' : 'fail';
+
+      var tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = rec.pass ? 'PASS' : 'FAIL';
+      li.appendChild(tag);
+
+      li.appendChild(document.createTextNode(rec.name + ' '));
+
+      var n = document.createElement('span');
+      n.className = 'n';
+      n.textContent = '(' + rec.asserts + ')';
+      li.appendChild(n);
+
+      rec.errors.forEach(function (msg) {
+        var d = document.createElement('div');
+        d.className = 'err';
+        d.textContent = msg;
+        li.appendChild(d);
+      });
+
+      frag.appendChild(li);
+    });
+
+    list.appendChild(frag);
+
+    var s = document.getElementById('summary');
+    s.className = sum.failed === 0 ? 'pass' : 'fail';
+    s.innerHTML =
+      '<b>' + sum.passed + '/' + sum.total + ' тестов пройдено</b> · ' +
+      sum.asserts + ' проверок · ' + elapsed + ' мс' +
+      (sum.failed ? ' · провалено: ' + sum.failed : '');
+
+    console.log(
+      '%c' + sum.passed + '/' + sum.total + ' тестов, ' + sum.asserts + ' проверок',
+      'color:' + (sum.failed === 0 ? '#8fae5c' : '#d6584a') + ';font-weight:bold'
+    );
+  })();
+  </script>
+</body>
+</html>
